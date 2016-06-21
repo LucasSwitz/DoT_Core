@@ -11,8 +11,6 @@
 #define SUBSCRIPTION_HEADER 3
 #define SUBSCRIPTION_UPDATE 0x31
 
-
-
 #define UNI_DELIM ','
 
 
@@ -317,8 +315,6 @@ public:
 			Vector<unsigned char> out;
 
 			//add header
-			out.put(HANDSHAKE_RETURN);
-			out.put(UNI_DELIM);
 			//add token
 			for (int i = 0; i < strlen(token); i++)
 			{
@@ -362,19 +358,61 @@ public:
 		}
 	}
 
+	void updateValue(const char * key, int val)
+	{
+		unsigned char out[4];
+		out[0] = (val << 24) & 0xFF;
+		out[1] = (val << 16) & 0xFF;
+		out[2] = (val << 8) & 0xFF;
+		out[3] = val & 0xFF;
+
+		updateValue(key, out, 4);
+	}
+	void updateValue(const char * key, char val)
+	{
+		updateValue(key, (unsigned char *)val,1);
+	}
+	void updateValue(const char * key, const char * val)
+	{
+		unsigned char* out = new unsigned char[strlen(val)];
+		for (int i = 0; i < strlen(val); i++)
+		{
+			out[i] = (unsigned char)val[i];
+		}
+		updateValue(key, out, strlen(val));
+	}
+
+	void updateValue(const char * key, const unsigned char * val, int valSize)
+	{
+		Vector<unsigned char> data;
+		for (int i = 0; i < strlen(key); i++)
+		{
+			data.put(key[i]);
+		}
+		data.put(UNI_DELIM);
+
+		for (int i = 0; i < valSize; i++)
+		{
+			data.put(val[i]);
+		}
+
+		Vector<unsigned char> out = package(SUBSCRIPTION_UPDATE, data.asArray(), data.size());
+		send(out.asArray(), out.size());
+	}
+
 	SubscriptionsDirectory::subscription getSubscription(const char * key)
 	{
 		directory.get(key);
 	}
 
-	void onSend(void(*sendFunction)(const unsigned char *))
+	void onSend(void(*sendFunction)(const unsigned char *,int))
 	{
 		_sendFunction = sendFunction;
 	}
 
-	void send(const unsigned char * out)
+	void send(const unsigned char * out, int size)
 	{
-		_sendFunction(out);
+		_sendFunction(out, size);
 	}
 
 	void feed(unsigned char * bytesIn, int numOfBytes)
@@ -384,7 +422,7 @@ public:
 private:
 	device_description desc;
 	SubscriptionsDirectory directory;
-	void(*_sendFunction)(const unsigned char *);
+	void(*_sendFunction)(const unsigned char *,int);
 
 	void parseData(unsigned char * data, int numOfBytes)
 	{
@@ -415,15 +453,25 @@ private:
 			break;
 		}
 	}
-	const unsigned char* package(int header, const unsigned char* data)
+	const Vector<unsigned char> package(unsigned char header, const unsigned char* data, int dataSize)
 	{
+		Vector<unsigned char> out;
+		out.put(header);
+		out.put(UNI_DELIM);
 
+		for (int i = 0; i < dataSize; i++)
+		{
+			out.put(data[i]);
+		}
+		out.put((char)10);
+		out.put((char)13);
+		return out;
 	}
 
 	void handshake()
 	{
-		Vector<unsigned char >d = desc.asHandshakeData();
-		//send(package(HANDSHAKE_RETURN,desc.asHandshakeData()));
+		Vector<unsigned char >out = package(HANDSHAKE_RETURN,desc.asHandshakeData().asArray(),desc.asHandshakeData().size());
+		send(out.asArray(),out.size());
 	}
 
 	SubscriptionsDirectory::subscription& subscriptonFromBytes(unsigned char* data, int numOfBytes)
