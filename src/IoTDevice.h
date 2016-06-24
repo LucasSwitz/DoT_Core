@@ -13,7 +13,6 @@
 
 #define UNI_DELIM ','
 
-
 template<class c>
 class Vector
 {
@@ -25,7 +24,10 @@ public:
 	}
 	~Vector()
 	{
-		//delete[] _data;
+		if (_data)
+		{
+			//delete[] _data;
+		}
 	}
 
 	void put(c element)
@@ -41,7 +43,14 @@ public:
 
 	c* asArray()
 	{
-		return _data;
+		c* out = new c[_size];
+
+		for (int i = 0; i < _size; i++)
+		{
+			out[i] = _data[i];
+		}
+
+		return out;
 	}
 
 	void resize()
@@ -146,11 +155,28 @@ public:
 		{
 			this->key = key;
 			this->val = data;
+			this->size = size;
 		}
 
 		int valAsInt()
 		{
-			return  val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];
+			switch (size)
+			{
+			case 0:
+				return 0;
+				break;
+			case 1:
+				return val[0];
+				break;
+			case 2:
+				val[0] << 8 | val[1];
+				break;
+			case 3:
+				val[0] << 16 | val[1] << 8 | val[2];
+				break;
+			default:
+				return  val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];
+			}
 		}
 
 		int valAsChar()
@@ -181,14 +207,23 @@ public:
 
 	void update(const char * key, unsigned char * val, int size)
 	{
+
 		if (this->get(key))
 		{
-			this->get(key)->val = val;
+			free(this->get(key)->val);
+			this->get(key)->val = (unsigned char *)malloc(size*sizeof(unsigned char));
+
+			for (int i = 0; i < size; i++)
+			{
+				this->get(key)->val[i] = val[i];
+			}
+
 			this->get(key)->size = size;
 		}
 		else
 		{
 			this->put(key, val, size);
+			update(key, val, size);
 		}
 	}
 
@@ -353,7 +388,7 @@ public:
 	{
 		for (int i = 0; i < desc.numberOfSubscriptions; i++)
 		{
-			directory.put(desc.subscriptions[i], NULL, 0);
+			directory.put(desc.subscriptions[i], 0, 1);
 		}
 	}
 
@@ -402,9 +437,9 @@ public:
 		}
 	}
 
-	SubscriptionsDirectory::subscription getSubscription(const char * key)
+	SubscriptionsDirectory::subscription* getSubscription(const char * key)
 	{
-		directory.get(key);
+		return directory.get(key);
 	}
 
 	void onSend(void(*sendFunction)(const unsigned char *, int))
@@ -442,7 +477,7 @@ private:
 			{
 			case SUBSCRIPTION_UPDATE:
 				SubscriptionsDirectory::subscription sub;
-				sub = subscriptonFromBytes(data, numOfBytes);
+				subscriptonFromBytes(data, numOfBytes, sub);
 				directory.update(sub.key, sub.val, sub.size);
 				break;
 			}
@@ -483,12 +518,11 @@ private:
 	void handshake()
 	{
 		Vector<unsigned char >out = package(HANDSHAKE_RETURN, desc.asHandshakeData().asArray(), desc.asHandshakeData().size());
-		send(out.asArray(), out.size());	
+		send(out.asArray(), out.size());
 	}
 
-	SubscriptionsDirectory::subscription& subscriptonFromBytes(unsigned char* data, int numOfBytes)
+	void subscriptonFromBytes(unsigned char* data, int numOfBytes, SubscriptionsDirectory::subscription& sub)
 	{
-		SubscriptionsDirectory::subscription out;
 		int headerIndex = 1;
 
 		//find where the key ends
@@ -498,7 +532,7 @@ private:
 		}
 
 		char* key = (char*)malloc(headerIndex);
-		int valueSize = numOfBytes - headerIndex - 1;
+		int valueSize = numOfBytes - headerIndex - 3;
 		unsigned char* val = (unsigned char *)malloc(valueSize);
 
 		//parse key
@@ -516,12 +550,9 @@ private:
 			k++;
 		}
 
-		out.key = key;
-		out.size = valueSize;
-		out.val = val;
-
+		sub.key = key;
+		sub.size = valueSize;
+		sub.val = val;
 		//this might break
-		free((unsigned char *)data);
-		return out;
 	}
 };
