@@ -20,13 +20,15 @@ public:
 	Vector(int capacity = 5)
 	{
 		_capacity = capacity;
-		_data = new c[_capacity];
+		_size = 0;
+		_data = (c *)malloc(capacity*sizeof(c));;
 	}
 	~Vector()
 	{
 		if (_data)
 		{
-			//delete[] _data;
+			free(_data);
+			_data = NULL;
 		}
 	}
 
@@ -49,7 +51,6 @@ public:
 		{
 			out[i] = _data[i];
 		}
-
 		return out;
 	}
 
@@ -78,6 +79,7 @@ public:
 	{
 		return _data[i];
 	}
+
 private:
 	c* _data;
 	int _capacity;
@@ -169,13 +171,13 @@ public:
 				return val[0];
 				break;
 			case 2:
-				val[0] << 8 | val[1];
+				return val[0] << 8 | val[1];
 				break;
 			case 3:
-				val[0] << 16 | val[1] << 8 | val[2];
+				return val[0] << 16 | val[1] << 8 | val[2];
 				break;
 			default:
-				return  val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];
+				return val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];	
 			}
 		}
 
@@ -210,8 +212,11 @@ public:
 
 		if (this->get(key))
 		{
-			free(this->get(key)->val);
-			this->get(key)->val = (unsigned char *)malloc(size*sizeof(unsigned char));
+			unsigned char * oldVal = this->get(key)->val;
+			int oldSize = this->get(key)->size;
+
+			delete[] this->get(key)->val;
+			this->get(key)->val = new unsigned char[size];
 
 			for (int i = 0; i < size; i++)
 			{
@@ -223,7 +228,6 @@ public:
 		else
 		{
 			this->put(key, val, size);
-			update(key, val, size);
 		}
 	}
 
@@ -326,7 +330,8 @@ public:
 	{
 		~device_description()
 		{
-			delete token;
+			if (token)
+				delete token;
 
 			for (int i = 0; i < numberOfSubscriptions; i++)
 			{
@@ -343,11 +348,8 @@ public:
 			this->numberOfSubscriptions = numberOfSubscriptions;
 		};
 
-		Vector<unsigned char> asHandshakeData()
+		void asHandshakeData(Vector<unsigned char>& out)
 		{
-
-			Vector<unsigned char> out;
-
 			//add header
 			//add token
 			for (int i = 0; i < strlen(token); i++)
@@ -374,7 +376,6 @@ public:
 				}
 				out.put(UNI_DELIM);
 			}
-			return out;
 		}
 
 		const char * token;
@@ -418,7 +419,7 @@ public:
 
 	void updateValue(const char * key, const unsigned char * val, int valSize)
 	{
-		if (_verified)
+		if (true)
 		{
 			Vector<unsigned char> data;
 			for (int i = 0; i < strlen(key); i++)
@@ -432,7 +433,8 @@ public:
 				data.put(val[i]);
 			}
 
-			Vector<unsigned char> out = package(SUBSCRIPTION_UPDATE, data.asArray(), data.size());
+			Vector<unsigned char> out;
+			package(out, SUBSCRIPTION_UPDATE, data.asArray(), data.size());
 			send(out.asArray(), out.size());
 		}
 	}
@@ -452,7 +454,7 @@ public:
 		if (_sendFunction)
 			_sendFunction(out, size);
 
-		free((unsigned char *)out);
+		delete[] out;
 	}
 
 	void feed(unsigned char * bytesIn, int numOfBytes)
@@ -498,9 +500,8 @@ private:
 			break;
 		}
 	}
-	const Vector<unsigned char> package(unsigned char header, const unsigned char* data, int dataSize)
+	void package(Vector<unsigned char>& out, unsigned char header, const unsigned char* data, int dataSize)
 	{
-		Vector<unsigned char> out;
 		out.put(header);
 		out.put(UNI_DELIM);
 
@@ -511,13 +512,15 @@ private:
 		out.put((char)10);
 		out.put((char)13);
 
-		free((unsigned char *)data);
-		return out;
+		delete[] data;
 	}
 
 	void handshake()
 	{
-		Vector<unsigned char >out = package(HANDSHAKE_RETURN, desc.asHandshakeData().asArray(), desc.asHandshakeData().size());
+		Vector<unsigned char> in;
+		Vector<unsigned char> out;
+		desc.asHandshakeData(in);
+		package(out, HANDSHAKE_RETURN, in.asArray(), in.size());
 		send(out.asArray(), out.size());
 	}
 
