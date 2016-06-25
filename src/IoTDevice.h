@@ -10,6 +10,7 @@
 
 #define SUBSCRIPTION_HEADER 3
 #define SUBSCRIPTION_UPDATE 0x31
+#define SUBSCRIPTION_INTERRUPT 0x32
 
 #define UNI_DELIM ','
 
@@ -348,6 +349,15 @@ public:
 			this->numberOfSubscriptions = numberOfSubscriptions;
 		};
 
+		void interruptValue(bool(*stopTrigger)(void))
+		{
+		
+		}
+
+		void resumeValue()
+		{
+		
+		}
 		void asHandshakeData(Vector<unsigned char>& out)
 		{
 			//add header
