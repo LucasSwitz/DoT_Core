@@ -52,23 +52,14 @@ public:
 		{
 			out[i] = _data[i];
 		}
+
 		return out;
 	}
 
 	void resize()
 	{
-		c* oldData = _data;
-		int oldSize = _size;
 		_capacity *= 2;
-		_size = 0;
-		_data = new c[_capacity];
-
-		for (int i = 0; i < oldSize; i++)
-		{
-			put(oldData[i]);
-		}
-
-		delete[] oldData;
+		_data = (c *)realloc(_data, sizeof(c)*_capacity);
 	}
 
 	int size()
@@ -146,19 +137,42 @@ class SubscriptionsDirectory
 public:
 	struct subscription
 	{
+		struct subscription_description
+		{
 
+			enum SubscriptionType
+			{
+				INT,
+				CHAR,
+				STRING,
+				BYTE_PTR
+			};
+
+			subscription_description(const char * key, SubscriptionType t)
+			{
+				this->type = t;
+				this->key = key;
+			}
+
+			subscription_description() {};
+			SubscriptionType type;
+			const char * key;
+		};
 		~subscription()
 		{
-			delete key;
-			delete val;
+
 		}
 
 		subscription() {};
-		subscription(const char * key, unsigned char *data, int size)
+		subscription(subscription_description d)
 		{
-			this->key = key;
+			this->desc = d;
+		}
+		subscription(subscription_description d, unsigned char *data, int size)
+		{
 			this->val = data;
 			this->size = size;
+			this->desc = d;
 		}
 
 		int valAsInt()
@@ -176,9 +190,8 @@ public:
 				break;
 			case 3:
 				return val[0] << 16 | val[1] << 8 | val[2];
-				break;
 			default:
-				return val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];	
+				return  val[0] << 24 | val[1] << 16 | val[2] << 8 | val[3];
 			}
 		}
 
@@ -187,8 +200,18 @@ public:
 			return val[0];
 		}
 
-		const char* key;
+		const char * getKey()
+		{
+			return desc.key;
+		}
+
+		subscription_description getDescription()
+		{
+			return desc;
+		}
+
 		unsigned char* val;
+		subscription_description desc;
 		int size;
 	};
 
@@ -226,20 +249,16 @@ public:
 
 			this->get(key)->size = size;
 		}
-		else
-		{
-			this->put(key, val, size);
-		}
 	}
 
-	void put(const char * command, unsigned char * val, int numOfBytes)
+	void put(subscription t, unsigned char * val, int numOfBytes)
 	{
-		if (!_subscriptions[hashKey(command)])
+		if (!_subscriptions[hashKey(t.getDescription().key)])
 		{
-			_subscriptions[hashKey(command)] = new LinkedList<subscription*>();
+			_subscriptions[hashKey(t.getDescription().key)] = new LinkedList<subscription*>();
 		}
 
-		_subscriptions[hashKey(command)]->push(new subscription(command, val, numOfBytes));
+		_subscriptions[hashKey(t.getDescription().key)]->push(new subscription(t.getDescription(), val, numOfBytes));
 		_size++;
 
 		if ((double)_size / (double)_capacity >= LOAD_THRESHOLD)
@@ -264,7 +283,7 @@ public:
 			if (!currentNode->next)
 				return currentNode->data;
 
-			if (!strcmp(currentNode->data->key, command))
+			if (!strcmp(currentNode->data->getKey(), command))
 			{
 				return currentNode->data;
 			}
@@ -295,7 +314,7 @@ private:
 				LinkedList<subscription*>::node<subscription*>* currentNode = _subscriptionsOld[i]->begin;
 				while (currentNode)
 				{
-					put(currentNode->data->key, currentNode->data->val, currentNode->data->size);
+					put(currentNode->data->getDescription(), currentNode->data->val, currentNode->data->size);
 					currentNode = currentNode->next;
 				}
 			}
@@ -326,6 +345,8 @@ private:
 class IoTDevice
 {
 public:
+	typedef SubscriptionsDirectory::subscription::subscription_description sub_desc;
+	typedef SubscriptionsDirectory::subscription::subscription_description::SubscriptionType sub_type;
 
 	struct device_description
 	{
@@ -334,30 +355,24 @@ public:
 			if (token)
 				delete token;
 
-			for (int i = 0; i < numberOfSubscriptions; i++)
-			{
-				delete subscriptions[i];
-			}
-
 			delete[] subscriptions;
 		}
-		device_description(const char * token, int heartbeatInterval, const char** subscriptions, int numberOfSubscriptions)
+
+		device_description(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscription_descs, int numberOfSubscriptions)
 		{
 			this->token = token;
 			this->heartbeatInterval = heartbeatInterval;
-			this->subscriptions = subscriptions;
+			this->subscriptions = new SubscriptionsDirectory::subscription[numberOfSubscriptions];
+
+			for (int i = 0; i < numberOfSubscriptions; i++)
+			{
+				this->subscriptions[i] = SubscriptionsDirectory::subscription(subscription_descs[i]);
+			}
 			this->numberOfSubscriptions = numberOfSubscriptions;
 		};
 
-		void interruptValue(bool(*stopTrigger)(void))
-		{
-		
-		}
 
-		void resumeValue()
-		{
-		
-		}
+
 		void asHandshakeData(Vector<unsigned char>& out)
 		{
 			//add header
@@ -380,21 +395,39 @@ public:
 
 			for (int i = 0; i < numberOfSubscriptions; i++)
 			{
-				for (int k = 0; k < strlen(subscriptions[i]); k++)
+				for (int k = 0; k < strlen(subscriptions[i].getDescription().key); k++)
 				{
-					out.put(subscriptions[i][k]);
+					out.put(subscriptions[i].getDescription().key[k]);
 				}
+				out.put(UNI_DELIM);
+
+				switch (subscriptions[i].getDescription().type)
+				{
+				case sub_type::INT:
+					out.put(sub_type::INT);
+					break;
+				case  sub_type::CHAR:
+					out.put(sub_type::CHAR);
+					break;
+				case  sub_type::STRING:
+					out.put(sub_type::STRING);
+					break;
+				case sub_type::BYTE_PTR:
+					out.put(sub_type::BYTE_PTR);
+					break;
+				}
+
 				out.put(UNI_DELIM);
 			}
 		}
 
 		const char * token;
-		const char ** subscriptions;
+		SubscriptionsDirectory::subscription* subscriptions;
 		int numberOfSubscriptions;
 		int heartbeatInterval;
 	};
 
-	IoTDevice(const char * token, int heartbeatInterval, const char** subscriptions, int numberOfSubscriptions)
+	IoTDevice(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscriptions, int numberOfSubscriptions)
 		:desc(token, heartbeatInterval, subscriptions, numberOfSubscriptions)
 	{
 		for (int i = 0; i < desc.numberOfSubscriptions; i++)
@@ -445,6 +478,7 @@ public:
 
 			Vector<unsigned char> out;
 			package(out, SUBSCRIPTION_UPDATE, data.asArray(), data.size());
+
 			send(out.asArray(), out.size());
 		}
 	}
@@ -490,7 +524,7 @@ private:
 			case SUBSCRIPTION_UPDATE:
 				SubscriptionsDirectory::subscription sub;
 				subscriptonFromBytes(data, numOfBytes, sub);
-				directory.update(sub.key, sub.val, sub.size);
+				directory.update(sub.getKey(), sub.val, sub.size);
 				break;
 			}
 			break;
@@ -563,9 +597,10 @@ private:
 			k++;
 		}
 
-		sub.key = key;
+		sub.desc.key = key;
 		sub.size = valueSize;
 		sub.val = val;
 		//this might break
 	}
 };
+
