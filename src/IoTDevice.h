@@ -14,6 +14,8 @@
 
 #define UNI_DELIM ','
 
+#define MAX_SUBSCRIPTIONS 8
+
 template<class c>
 class Vector
 {
@@ -142,10 +144,11 @@ public:
 
 			enum SubscriptionType
 			{
-				INT,
-				CHAR,
-				STRING,
-				BYTE_PTR
+				INT = 0,
+				CHAR = 1,
+				STRING = 2,
+				BOOLEAN = 3,
+				BYTE_PTR = 4
 			};
 
 			subscription_description(const char * key, SubscriptionType t)
@@ -215,7 +218,7 @@ public:
 		int size;
 	};
 
-	SubscriptionsDirectory(int capacity = 8)
+	SubscriptionsDirectory(int capacity = 16)
 	{
 		_capacity = capacity;
 		_subscriptions = new LinkedList<subscription*>*[capacity];
@@ -358,17 +361,24 @@ public:
 			delete[] subscriptions;
 		}
 
-		device_description(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscription_descs, int numberOfSubscriptions)
+		device_description(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscription_descs, unsigned int numberOfSubscriptions)
 		{
+		
+			if (numberOfSubscriptions > MAX_SUBSCRIPTIONS)
+			{
+				numberOfSubscriptions = MAX_SUBSCRIPTIONS;
+			}
+
 			this->token = token;
 			this->heartbeatInterval = heartbeatInterval;
 			this->subscriptions = new SubscriptionsDirectory::subscription[numberOfSubscriptions];
+			this->numberOfSubscriptions = numberOfSubscriptions;
+			
 
 			for (int i = 0; i < numberOfSubscriptions; i++)
 			{
 				this->subscriptions[i] = SubscriptionsDirectory::subscription(subscription_descs[i]);
 			}
-			this->numberOfSubscriptions = numberOfSubscriptions;
 		};
 
 
@@ -401,21 +411,7 @@ public:
 				}
 				out.put(UNI_DELIM);
 
-				switch (subscriptions[i].getDescription().type)
-				{
-				case sub_type::INT:
-					out.put(sub_type::INT);
-					break;
-				case  sub_type::CHAR:
-					out.put(sub_type::CHAR);
-					break;
-				case  sub_type::STRING:
-					out.put(sub_type::STRING);
-					break;
-				case sub_type::BYTE_PTR:
-					out.put(sub_type::BYTE_PTR);
-					break;
-				}
+				out.put(subscriptions[i].getDescription().type);
 
 				out.put(UNI_DELIM);
 			}
