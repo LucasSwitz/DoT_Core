@@ -458,25 +458,25 @@ public:
 
 	void updateValue(const char * key, const unsigned char * val, int valSize)
 	{
-		if (true)
+		if (true) //verified
 		{
-			Vector<unsigned char> data;
-			for (int i = 0; i < strlen(key); i++)
-			{
-				data.put(key[i]);
+				Vector<unsigned char> data;
+				for (int i = 0; i < strlen(key); i++)
+				{
+					data.put(key[i]);
+				}
+				data.put(UNI_DELIM);
+
+				for (int i = 0; i < valSize; i++)
+				{
+					data.put(val[i]);
+				}
+
+				Vector<unsigned char> out;
+				package(out, SUBSCRIPTION_UPDATE, data.asArray(), data.size());
+
+				send(out.asArray(), out.size());
 			}
-			data.put(UNI_DELIM);
-
-			for (int i = 0; i < valSize; i++)
-			{
-				data.put(val[i]);
-			}
-
-			Vector<unsigned char> out;
-			package(out, SUBSCRIPTION_UPDATE, data.asArray(), data.size());
-
-			send(out.asArray(), out.size());
-		}
 	}
 
 	SubscriptionsDirectory::subscription* getSubscription(const char * key)
