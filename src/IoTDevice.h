@@ -148,18 +148,26 @@ public:
 				CHAR = 1,
 				STRING = 2,
 				BOOLEAN = 3,
-				BYTE_PTR = 4
+				ENUM = 4,
+				BYTE_PTR = 5
 			};
 
-			subscription_description(const char * key, SubscriptionType t)
+			subscription_description(const char * key, SubscriptionType t, const unsigned char lowLimit,const unsigned char highLimit)
 			{
 				this->type = t;
 				this->key = key;
+				this->lowLimit = lowLimit;
+				this->highLimit = highLimit;
 			}
 
-			subscription_description() {};
+			subscription_description() {
+				lowLimit = 0;
+				highLimit = 255;
+			};
 			SubscriptionType type;
 			const char * key;
+			unsigned char lowLimit;
+			unsigned char highLimit;
 		};
 		~subscription()
 		{
@@ -412,6 +420,14 @@ public:
 				out.put(UNI_DELIM);
 
 				out.put(subscriptions[i].getDescription().type);
+
+				out.put(UNI_DELIM);
+
+				out.put(subscriptions[i].getDescription().lowLimit);
+
+				out.put(UNI_DELIM);
+
+				out.put(subscriptions[i].getDescription().highLimit);
 
 				out.put(UNI_DELIM);
 			}
