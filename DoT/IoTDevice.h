@@ -169,9 +169,10 @@ public:
 			unsigned char lowLimit;
 			unsigned char highLimit;
 		};
+
 		~subscription()
 		{
-
+			
 		}
 
 		subscription() {};
@@ -179,6 +180,7 @@ public:
 		{
 			this->desc = d;
 		}
+
 		subscription(subscription_description d, unsigned char *data, int size)
 		{
 			this->val = data;
@@ -247,9 +249,6 @@ public:
 
 		if (this->get(key))
 		{
-			unsigned char * oldVal = this->get(key)->val;
-			int oldSize = this->get(key)->size;
-
 			delete[] this->get(key)->val;
 			this->get(key)->val = new unsigned char[size];
 
@@ -525,6 +524,8 @@ private:
 
 	void parseData(unsigned char * data, int numOfBytes)
 	{
+		SubscriptionsDirectory::subscription sub;
+
 		if (!(numOfBytes > 0))
 			return;
 
@@ -534,10 +535,11 @@ private:
 			switch (data[0])
 			{
 			case SUBSCRIPTION_UPDATE:
-				SubscriptionsDirectory::subscription sub;
-				subscriptonFromBytes(data, numOfBytes, sub);
-				directory.update(sub.getKey(), sub.val, sub.size);
+				if(subscriptonFromBytes(data, numOfBytes, sub))
+					directory.update(sub.getKey(), sub.val, sub.size);
 				break;
+			default:
+				;
 			}
 			break;
 		case HANDSHAKE_HEADER:
@@ -550,10 +552,14 @@ private:
 			case HANDSHAKE_RETURN:
 				_verified = true;
 				break;
+			default:
+				;
 			}
 			break;
 		case HEARTBEAT_HEADER:
 			break;
+		default:
+			return;
 		}
 	}
 	void package(Vector<unsigned char>& out, unsigned char header, const unsigned char* data, int dataSize)
@@ -580,13 +586,17 @@ private:
 		send(out.asArray(), out.size());
 	}
 
-	void subscriptonFromBytes(unsigned char* data, int numOfBytes, SubscriptionsDirectory::subscription& sub)
+	bool subscriptonFromBytes(unsigned char* data, int numOfBytes, SubscriptionsDirectory::subscription& sub)
 	{
 		int headerIndex = 1;
 
 		//find where the key ends
 		while ((char)data[headerIndex] != UNI_DELIM)
 		{
+			if (headerIndex >= (numOfBytes - 1))
+			{
+				return false;
+			}
 			headerIndex++;
 		}
 
@@ -612,7 +622,10 @@ private:
 		sub.desc.key = key;
 		sub.size = valueSize;
 		sub.val = val;
+
+		return true;
 		//this might break
 	}
+
 };
 
