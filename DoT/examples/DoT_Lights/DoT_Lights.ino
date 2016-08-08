@@ -1,5 +1,5 @@
 #include <Adafruit_NeoPixel.h>
-#include "C:\Users\Lucas\Documents\GitHub\DoT_Core\src\IoTDevice.h"
+#include <IoTDevice.h>
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(30, 4, NEO_GRB + NEO_KHZ800);
 
@@ -8,7 +8,7 @@ IoTDevice::sub_desc subs[] = {IoTDevice::sub_desc("R",IoTDevice::sub_type::INT,0
                               IoTDevice::sub_desc("B",IoTDevice::sub_type::INT,0,(byte)255),
                               IoTDevice::sub_desc("Pattern",IoTDevice::sub_type::ENUM,0,(byte)3)};
                               
-IoTDevice device("Light",5,subs,4);
+DoTDevice device("Light",5,subs,4);
 boolean updated = false;
 
 void setup() {

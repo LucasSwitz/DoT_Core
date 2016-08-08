@@ -352,7 +352,7 @@ private:
 	LinkedList<subscription*>** _subscriptions;
 };
 
-class IoTDevice
+class DoTDevice
 {
 public:
 	typedef SubscriptionsDirectory::subscription::subscription_description sub_desc;
@@ -438,7 +438,7 @@ public:
 		int heartbeatInterval;
 	};
 
-	IoTDevice(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscriptions, int numberOfSubscriptions)
+	DoTDevice(const char * token, int heartbeatInterval, SubscriptionsDirectory::subscription::subscription_description* subscriptions, int numberOfSubscriptions)
 		:desc(token, heartbeatInterval, subscriptions, numberOfSubscriptions)
 	{
 		for (int i = 0; i < desc.numberOfSubscriptions; i++)
