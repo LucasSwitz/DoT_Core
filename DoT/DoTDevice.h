@@ -388,8 +388,6 @@ public:
 			}
 		};
 
-
-
 		void asHandshakeData(Vector<unsigned char>& out)
 		{
 			//add header
@@ -416,6 +414,7 @@ public:
 				{
 					out.put(subscriptions[i].getDescription().key[k]);
 				}
+
 				out.put(UNI_DELIM);
 
 				out.put(subscriptions[i].getDescription().type);
@@ -480,6 +479,7 @@ public:
 				{
 					data.put(key[i]);
 				}
+				
 				data.put(UNI_DELIM);
 
 				for (int i = 0; i < valSize; i++)

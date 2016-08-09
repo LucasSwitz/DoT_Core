@@ -1,12 +1,12 @@
 #include <Adafruit_NeoPixel.h>
-#include <IoTDevice.h>
+#include "C:\Users\Lucas\Documents\GitHub\DoT_Core\DoT\DoTDevice.h"
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(30, 4, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(89, 4, NEO_GRB + NEO_KHZ800);
 
-IoTDevice::sub_desc subs[] = {IoTDevice::sub_desc("R",IoTDevice::sub_type::INT,0,(byte)255),
-                              IoTDevice::sub_desc("G",IoTDevice::sub_type::INT,0,(byte)255),
-                              IoTDevice::sub_desc("B",IoTDevice::sub_type::INT,0,(byte)255),
-                              IoTDevice::sub_desc("Pattern",IoTDevice::sub_type::ENUM,0,(byte)3)};
+DoTDevice::sub_desc subs[] = {DoTDevice::sub_desc("R",DoTDevice::sub_type::INT,0,(byte)255),
+                              DoTDevice::sub_desc("G",DoTDevice::sub_type::INT,0,(byte)255),
+                              DoTDevice::sub_desc("B",DoTDevice::sub_type::INT,0,(byte)255),
+                              DoTDevice::sub_desc("Pattern",DoTDevice::sub_type::ENUM,0,(byte)3)};
                               
 DoTDevice device("Light",5,subs,4);
 boolean updated = false;
@@ -45,15 +45,40 @@ void loop() {
     case 2:
       rainbowCycle(10);
       break;
+    case 3:
+      pulse(device.getSubscription("R")->valAsInt(),
+                            device.getSubscription("G")->valAsInt(),
+                            device.getSubscription("B")->valAsInt(),4000);
      default: 
      ;
   }
 }
 
+void pulse(int r,int g,int b, int period)
+{
+  Serial.println(period);
+  long start = millis();
+  long duration = 0;
+  int _r,_g,_b;
+  while(duration < period)
+  {
+    duration  = millis() - start;
+    double brightness = pow(sin(((double)(duration*PI))/((double)(period))),2);
+    for(int i = 0; i < strip.numPixels(); i++)
+    {
+      _r=r*brightness;
+      _b=b*brightness;
+      _g=g*brightness;
+      strip.setPixelColor(i,strip.Color(_r,_g,_b));
+    }
+    strip.show();
+  }
+}
+
 void runFire()
 {
-  int r = 240 ;
-  int g = 60;
+  int r = 255 ;
+  int g = 140;
   int b = 0;
 
   for(int x = 0; x < strip.numPixels(); x++)
@@ -67,8 +92,8 @@ void runFire()
     if(b1<0) b1=0;
     strip.setPixelColor(x,r1,g1, b1);
 }
-strip.show();
-delay(random(10,300));  
+  strip.show();
+  delay(random(10,60));  
 }
 
 void rainbowCycle(uint8_t wait) {
@@ -107,7 +132,6 @@ void colorWipe(uint32_t c, uint8_t wait) {
 void send(const unsigned char* data,int size)
 {
   Serial.write(data,size);
-  
 }
 
 void feedDevice()
